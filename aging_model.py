@@ -1,0 +1,37 @@
+import numpy as np
+from data.aging_parameters import AgingParameters
+from utils.utils import celsius_to_kelvin, hours_to_days
+
+class AgingModel:
+    def __init__(self, params: AgingParameters = None):
+        self.params = params if params else AgingParameters()
+
+    def calculate_calendar_aging(self, time_hours: float, temp_celsius: float, avg_soc: float) -> float:
+        temp_kelvin = celsius_to_kelvin(temp_celsius)
+        time_days = hours_to_days(time_hours)
+
+        temp_term = np.exp(-self.params.activation_energy_calendar / (self.params.gas_constant * temp_kelvin))
+        soc_term = 1.19e-4 * avg_soc + 0.01
+        time_term = time_days ** self.params.time_exponent
+
+        return self.params.pre_exp_factor_calendar * temp_term * soc_term * time_term
+
+    def calculate_cyclic_aging(self, efc: float, temp_celsius: float, avg_soc: float, dod: float) -> float:
+        temp_kelvin = celsius_to_kelvin(temp_celsius)
+        temp_term = np.exp(-self.params.activation_energy_cyclic / (self.params.gas_constant * temp_kelvin))
+        stress_term = self._calculate_stress_amplitude(avg_soc, dod)
+        efc_term = efc ** self.params.efc_exponent
+
+        return self.params.cyclic_factor * stress_term * temp_term * efc_term
+
+    def _calculate_stress_amplitude(self, avg_soc: float, dod: float) -> float:
+        soc_min = avg_soc - dod / 2.0
+        soc_max = avg_soc + dod / 2.0
+        return self._calculate_polynomial(soc_max) - self._calculate_polynomial(soc_min)
+
+    def _calculate_polynomial(self, soc: float) -> float:
+        coeffs = [2.74e-13, -8.39e-11, 8.38e-9, -2.39e-7, -5.05e-6, 9.70e-5, 0.02, -6.19e-3]
+        result = 0.0
+        for i, coeff in enumerate(coeffs):
+            result += coeff * (soc ** (7 - i))
+        return max(0.0, result)
