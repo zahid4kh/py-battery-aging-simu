@@ -1,10 +1,7 @@
-import random
-from typing import Tuple
 from bus_operation_generator import BusOperationGenerator
 from bus_simulation import BusSimulation
 from data.bus import RouteType, Bus
-from data.simulation_scenario import SimulationScenario
-from utils.utils import years_to_hours, hours_to_days
+from utils.utils import days_to_hours
 
 
 class SimulationRunner:
@@ -12,72 +9,56 @@ class SimulationRunner:
         self.bus_simulation = BusSimulation()
         self.operation_generator = BusOperationGenerator()
 
-    def run_comparison(self, duration_hours: float = None):
-        if duration_hours is None:
-            duration_hours = years_to_hours(1.0)
-
-        scenarios = [
-            SimulationScenario("Cold_Narrow", 10.0, (0.2, 0.8), 0.1, 0.5),
-            SimulationScenario("Normal_Narrow", 25.0, (0.2, 0.8), 0.1, 0.5),
-            SimulationScenario("Hot_Narrow", 40.0, (0.2, 0.8), 0.1, 0.5),
-            SimulationScenario("Normal_Medium", 25.0, (0.3, 0.9), 0.5, 1.0),
-            SimulationScenario("Normal_Wide", 25.0, (0.5, 1.0), 0.5, 1.0),
-            SimulationScenario("High_DoD", 25.0, (0.2, 0.8), 0.8, 2.0),
-            SimulationScenario("High_CRate", 25.0, (0.2, 0.8), 0.5, 2.0)
-        ]
-
-        print("Scenario,FinalSoH,CalendarAge,CycleCount,CapacityLoss")
-
-        for scenario in scenarios:
-            bus = Bus(
-                id="TestBus",
-                route_type=RouteType.CITY,
-                battery_capacity=300.0,
-                initial_soc=(scenario.soc_window[0] + scenario.soc_window[1]) / 2.0,
-                stops_per_route=random.randint(15, 34),
-                passengers_avg=random.randint(25, 54)
-            )
-
-            conditions = self.operation_generator.generate_operating_conditions(
-                duration_hours=duration_hours,
-                temp_celsius=scenario.temperature
-            )
-
-            result = self.bus_simulation.simulate_battery(bus, conditions, scenario.soc_window)
-            final_state = result.history[-1]
-            capacity_loss = ((bus.battery_capacity - final_state.capacity) / bus.battery_capacity) * 100.0
-
-            print(
-                f"{scenario.name},{final_state.soh},{final_state.calendar_age},{final_state.cycle_count},{capacity_loss}")
-
-    def run_single_scenario(
+    def run_simulation(
             self,
-            duration_hours: float,
+            duration_days: float = 30.0,  # default 30 days
             temperature: float = 25.0,
-            soc_window: Tuple[float, float] = (0.2, 0.8)
+            soc_window: tuple = (0.3, 0.9),
+            bus_id: str = "TrolleyBus_001"
     ):
+        duration_hours = days_to_hours(duration_days)
+
         bus = Bus(
-            id="SingleTestBus",
+            id=bus_id,
             route_type=RouteType.CITY,
-            battery_capacity=300.0,
-            initial_soc=0.8,
-            stops_per_route=random.randint(20, 29),
-            passengers_avg=random.randint(30, 49)
+            battery_capacity=300.0,  # 300 Ah trolleybus battery
+            initial_soc=0.8,  # Start at 80% charge
+            stops_per_route=25,
+            passengers_avg=40
         )
 
-        conditions = self.operation_generator.generate_operating_conditions(
-            duration_hours=duration_hours,
-            temp_celsius=temperature
-        )
-
-        result = self.bus_simulation.simulate_battery(bus, conditions, soc_window)
-        final_state = result.history[-1]
-
-        print("Single Scenario Results:")
-        print(f"Duration: {hours_to_days(duration_hours)} days")
+        print(f"=== Trolleybus Battery Aging Simulation ===")
+        print(f"Bus ID: {bus_id}")
+        print(f"Duration: {duration_days} days ({duration_hours} hours)")
         print(f"Temperature: {temperature}°C")
         print(f"SoC Window: {soc_window[0] * 100}% - {soc_window[1] * 100}%")
-        print(f"Final SoH: {final_state.soh}%")
-        print(f"Calendar Age: {final_state.calendar_age} days")
-        print(f"Cycle Count: {final_state.cycle_count}")
-        print(f"Capacity Loss: {((bus.battery_capacity - final_state.capacity) / bus.battery_capacity) * 100.0}%")
+        print(f"Battery Capacity: {bus.battery_capacity} Ah")
+        print(f"Saving data every hour...")
+        print()
+
+        # operating conditions
+        conditions = self.operation_generator.generate_operating_conditions(
+            duration_hours=duration_hours,
+            temp_celsius=temperature,
+            time_step_hours=0.1  # 6-minute intervals for detailed simulation
+        )
+
+        result = self.bus_simulation.simulate_battery(
+            bus,
+            conditions,
+            soc_window,
+            save_interval_hours=1.0  # Save every hour
+        )
+
+        final_state = result.history[-1]
+        capacity_loss = ((bus.battery_capacity - final_state.capacity) / bus.battery_capacity) * 100.0
+
+        print("=== SIMULATION RESULTS ===")
+        print(f"Final SoH: {final_state.soh:.2f}%")
+        print(f"Final Capacity: {final_state.capacity:.2f} Ah")
+        print(f"Capacity Loss: {capacity_loss:.2f}%")
+        print(f"Total EFC: {final_state.cycle_count:.2f}")
+        print(f"Calendar Age: {final_state.calendar_age:.1f} days")
+        print(f"Total Ah Throughput: {final_state.total_ah_throughput:.1f} Ah")
+
+        return result

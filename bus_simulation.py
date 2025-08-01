@@ -1,4 +1,7 @@
 from typing import Tuple, List
+
+import pandas as pd
+
 from aging_model import AgingModel
 from data.battery_state import BatteryState
 from data.bus import Bus
@@ -15,7 +18,8 @@ class BusSimulation:
             self,
             bus: Bus,
             conditions: List[OperatingCondition],
-            soc_window: Tuple[float, float] = (0.2, 0.8)
+            soc_window: Tuple[float, float] = (0.2, 0.8),
+            save_interval_hours: float = 1.0 # saving every hour
     ) -> SimulationResult:
         battery_state = BatteryState(
             soc=bus.initial_soc,
@@ -30,9 +34,10 @@ class BusSimulation:
         )
 
         history = [battery_state]
-        total_efc = 0.0
-        avg_soc = bus.initial_soc
-        avg_dod = 0.0
+        detailed_data = []
+
+        soc_history_for_dod = []
+        last_save_time = 0.0
 
         for i in range(1, len(conditions)):
             condition = conditions[i]
@@ -47,11 +52,17 @@ class BusSimulation:
                 bus.battery_capacity
             )
 
+            soc_history_for_dod.append(battery_state.soc)
+            if len(soc_history_for_dod) > 1000:
+                soc_history_for_dod.pop(0)
+
             if i % 100 == 0:
+                current_dod = self._calculate_dod_from_soc_history(soc_history_for_dod)
+
                 recent_history = history[-100:] if len(history) >= 100 else history
                 avg_soc = sum(state.soc for state in recent_history) / len(recent_history)
-                avg_dod = self._calculate_average_dod(recent_history)
-                total_efc += avg_dod / 2.0
+
+                total_efc = battery_state.total_ah_throughput / (2.0 * bus.battery_capacity)
 
                 calendar_loss = self.aging_model.calculate_calendar_aging(
                     condition.time,
@@ -63,11 +74,11 @@ class BusSimulation:
                     total_efc,
                     condition.ambient_temp,
                     avg_soc,
-                    avg_dod
+                    current_dod
                 )
 
-                total_loss = calendar_loss + cyclic_loss
-                new_capacity = bus.battery_capacity * (1.0 - total_loss)
+                total_loss_fraction = calendar_loss + cyclic_loss
+                new_capacity = bus.battery_capacity * (1.0 - total_loss_fraction)
                 new_soh = (new_capacity / bus.battery_capacity) * 100.0
 
                 battery_state = BatteryState(
@@ -80,10 +91,35 @@ class BusSimulation:
                     calendar_age=hours_to_days(condition.time),
                     capacity=new_capacity,
                     soh=new_soh,
-                    avg_dod=avg_dod
+                    avg_dod=current_dod
                 )
 
+            if condition.time - last_save_time >= save_interval_hours:
+                current_dod = self._calculate_dod_from_soc_history(soc_history_for_dod)
+
+                detailed_data.append({
+                    'time_hours': condition.time,
+                    'time_days': hours_to_days(condition.time),
+                    'soc': battery_state.soc,
+                    'soh': battery_state.soh,
+                    'capacity': battery_state.capacity,
+                    'current': battery_state.current,
+                    'temperature': battery_state.temperature,
+                    'total_ah_throughput': battery_state.total_ah_throughput,
+                    'efc': battery_state.cycle_count,
+                    'current_dod': current_dod,  # Current DoD at this time
+                    'calendar_age_days': battery_state.calendar_age,
+                    'calendar_loss': self.aging_model.calculate_calendar_aging(
+                        condition.time, condition.ambient_temp, battery_state.soc),
+                    'cyclic_loss': self.aging_model.calculate_cyclic_aging(
+                        battery_state.cycle_count, condition.ambient_temp,
+                        battery_state.soc, current_dod) if battery_state.cycle_count > 0 else 0.0
+                })
+                last_save_time = condition.time
+
             history.append(battery_state)
+
+        self._save_detailed_data(detailed_data, bus.id)
 
         return SimulationResult(bus, history, conditions)
 
@@ -123,10 +159,20 @@ class BusSimulation:
             soh=state.soh
         )
 
-    def _calculate_average_dod(self, history: List[BatteryState]) -> float:
-        if len(history) < 2:
+    def _calculate_dod_from_soc_history(self, soc_history: List[float]) -> float:
+        if len(soc_history) < 10:  # at least 10 data points
             return 0.0
-        soc_values = [state.soc for state in history]
-        max_soc = max(soc_values)
-        min_soc = min(soc_values)
-        return max_soc - min_soc
+
+        max_soc = max(soc_history)
+        min_soc = min(soc_history)
+        dod = max_soc - min_soc
+
+        return max(0.0, dod)
+
+    def _save_detailed_data(self, data: List[dict], bus_id: str):
+        """Save detailed simulation data to CSV"""
+        if data:
+            df = pd.DataFrame(data)
+            filename = f"simulation_detailed_{bus_id}.csv"
+            df.to_csv(filename, index=False)
+            print(f"Detailed data saved to {filename} with {len(data)} records")
