@@ -6,7 +6,7 @@ def main():
     print("Starting 30-day trolleybus battery aging simulation...")
     print()
 
-    result = runner.run_simulation(
+    runner.run_simulation(
         duration_days=30.0,
         temperature=25.0,
         soc_window=(0.3, 0.9),
