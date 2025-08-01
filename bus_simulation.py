@@ -170,7 +170,6 @@ class BusSimulation:
         return max(0.0, dod)
 
     def _save_detailed_data(self, data: List[dict], bus_id: str):
-        """Save detailed simulation data to CSV"""
         if data:
             df = pd.DataFrame(data)
             filename = f"simulation_detailed_{bus_id}.csv"
