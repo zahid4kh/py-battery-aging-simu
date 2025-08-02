@@ -1,7 +1,6 @@
 from typing import Tuple, List
-
+import numpy as np
 import pandas as pd
-
 from aging_model import AgingModel
 from data.battery_state import BatteryState
 from data.bus import Bus
@@ -168,6 +167,15 @@ class BusSimulation:
         dod = max_soc - min_soc
 
         return max(0.0, dod)
+
+    def get_ocv_from_soc(self, soc: float) -> float:
+        # clamp SOC between (0.0-1.0)
+        soc = max(0.0, min(1.0, soc))
+
+        soc_points = [0.0, 0.1, 0.2, 0.4, 0.6, 0.8, 1.0]
+        ocv_points = [3.0, 3.4, 3.5, 3.65, 3.75, 3.9, 4.2]
+
+        return float(np.interp(soc, soc_points, ocv_points))
 
     def _save_detailed_data(self, data: List[dict], bus_id: str):
         if data:
