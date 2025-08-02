@@ -1,6 +1,8 @@
+from typing import Tuple
 from bus_operation_generator import BusOperationGenerator
 from bus_simulation import BusSimulation
 from data.bus import RouteType, Bus
+from data.simulation_result import SimulationResult
 from utils.utils import days_to_hours
 
 
@@ -13,9 +15,9 @@ class SimulationRunner:
             self,
             duration_days: float = 30.0,  # default 30 days
             temperature: float = 25.0,
-            soc_window: tuple = (0.3, 0.9),
+            soc_window: Tuple[float, float] = (0.3, 0.9),
             bus_id: str = "TrolleyBus_001"
-    ):
+    ) -> SimulationResult:
         duration_hours = days_to_hours(duration_days)
 
         bus = Bus(
