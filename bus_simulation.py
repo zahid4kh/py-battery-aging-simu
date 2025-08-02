@@ -132,15 +132,18 @@ class BusSimulation:
     ) -> BatteryState:
         new_soc = state.soc
         current = 0.0
+        charging_c_rate = 0.5 # C/2
+        regen_c_rate = 0.2 # C/5
+        discharge_c_rate = 0.3 # ~C/3
 
         if condition.is_charging and state.soc < soc_window[1]:
-            current = -100.0
+            current = -charging_c_rate * nominal_capacity
             new_soc = min(soc_window[1], state.soc + (abs(current) * dt / nominal_capacity))
         elif condition.is_regenerating and state.soc < soc_window[1]:
-            current = -50.0
+            current = -regen_c_rate * nominal_capacity
             new_soc = min(soc_window[1], state.soc + (abs(current) * dt / nominal_capacity))
         elif not condition.is_charging:
-            current = 80.0 + condition.passengers * 1.5
+            current = discharge_c_rate * nominal_capacity
             new_soc = max(soc_window[0], state.soc - (current * dt / nominal_capacity))
 
         voltage = 300.0 + (new_soc * 100.0) # not needed for cyclic aging
