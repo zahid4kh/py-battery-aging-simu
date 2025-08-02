@@ -143,7 +143,7 @@ class BusSimulation:
             current = 80.0 + condition.passengers * 1.5
             new_soc = max(soc_window[0], state.soc - (current * dt / nominal_capacity))
 
-        voltage = 300.0 + (new_soc * 100.0)
+        voltage = 300.0 + (new_soc * 100.0) # not needed for cyclic aging
         throughput = state.total_ah_throughput + abs(current) * dt
 
         return BatteryState(
