@@ -11,7 +11,10 @@ class AgingModel:
         time_days = hours_to_days(time_hours)
 
         temp_term = np.exp(-self.params.activation_energy_calendar / (self.params.gas_constant * temp_kelvin))
-        soc_term = 1.19e-4 * avg_soc + 0.01
+
+        #soc_term = 1.19e-4 * avg_soc + 0.01 # this is causing very tiny aging
+        soc_term = 1.0 + 2.0 * (avg_soc - 0.5)**2 # switching to quadratic function
+
         time_term = time_days ** self.params.time_exponent
 
         return self.params.pre_exp_factor_calendar * temp_term * soc_term * time_term
@@ -22,11 +25,16 @@ class AgingModel:
 
         temp_kelvin = celsius_to_kelvin(temp_celsius)
         temp_term = np.exp(-self.params.activation_energy_cyclic / (self.params.gas_constant * temp_kelvin))
-        stress_term = self._calculate_stress_amplitude(avg_soc, avg_dod)
+
+        #stress_term = self._calculate_stress_amplitude(avg_soc, avg_dod) using hardcoded DOD&SOC below instead
+
+        dod_stress = 1.0 + 5.0 * avg_dod  # Linear DoD dependency
+        soc_stress = 1.0 + 3.0 * (avg_soc - 0.5) ** 2 # Quadratic SoC dependency
+
         efc_term = efc ** self.params.efc_exponent
         soc_chemical_term = 3.90e-3 * avg_soc + 0.20 # chemical stress -> linear relationship Equation 4.11
 
-        return self.params.cyclic_factor * stress_term * temp_term * efc_term * soc_chemical_term
+        return self.params.cyclic_factor * dod_stress * soc_stress * temp_term * efc_term * soc_chemical_term
 
     def _calculate_stress_amplitude(self, avg_soc: float, avg_dod: float) -> float:
         soc_min = max(0.0, avg_soc - avg_dod / 2.0)
