@@ -25,8 +25,6 @@ class SimulationRunner:
             route_type=RouteType.CITY,
             battery_capacity=300.0,  # 300 Ah trolleybus battery
             initial_soc=0.8,  # Start at 80% charge
-            stops_per_route=25,
-            passengers_avg=40
         )
 
         print(f"=== Trolleybus Battery Aging Simulation ===")
