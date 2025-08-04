@@ -12,4 +12,3 @@ class Bus:
     route_type: RouteType
     battery_capacity: float = 300.0
     initial_soc: float = 0.9
-    overhead_coverage: float = 0.3
