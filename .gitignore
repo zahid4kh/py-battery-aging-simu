@@ -5,3 +5,5 @@ __pycache__
 plot-all.py
 plot-all-super.py
 /data/__pycache__
+/pfiles
+/csv-results
