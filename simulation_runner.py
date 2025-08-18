@@ -28,22 +28,24 @@ class SimulationRunner:
 
         bus = Bus(
             id=bus_id,
-            route_type=RouteType.CITY,
             battery_capacity=400.0,
-            initial_soc=0.7,  
+            initial_soc=0.7,
         )
 
-        battery_capacity_kwh = (bus.battery_capacity * sim_params.battery_voltage) / 1000
+        battery_capacity_kwh = (bus.battery_capacity *
+                                sim_params.battery_voltage) / 1000
 
         duration_hours = conditions[-1].time
         print(f"=== Real Data Trolleybus Battery Aging Simulation ===")
         print(f"Bus ID: {bus_id}")
-        print(f"Duration: {duration_hours:.2f} hours ({duration_hours / 24:.2f} days)")
+        print(
+            f"Duration: {duration_hours:.2f} hours ({duration_hours / 24:.2f} days)")
         print(f"Data Points: {len(conditions)}")
         print(
             f"Temperature Range: {min(c.ambient_temp for c in conditions):.1f}°C - {max(c.ambient_temp for c in conditions):.1f}°C")
         print(f"SoC Window: {soc_window[0] * 100}% - {soc_window[1] * 100}%")
-        print(f"Battery Capacity: {bus.battery_capacity} Ah ({battery_capacity_kwh:.1f} kWh)")
+        print(
+            f"Battery Capacity: {bus.battery_capacity} Ah ({battery_capacity_kwh:.1f} kWh)")
         print()
 
         result = self.bus_simulation.simulate_battery(
@@ -54,7 +56,8 @@ class SimulationRunner:
         )
 
         final_state = result.history[-1]
-        capacity_loss = ((bus.battery_capacity - final_state.capacity) / bus.battery_capacity) * 100.0
+        capacity_loss = (
+            (bus.battery_capacity - final_state.capacity) / bus.battery_capacity) * 100.0
 
         print("=== SIMULATION RESULTS ===")
         print(f"Final SoH: {final_state.soh:.2f}%")
