@@ -8,5 +8,5 @@ class AgingParameters:
     gas_constant: float = 8.314
     time_exponent: float = 0.789
     efc_exponent: float = 0.98
-    pre_exp_factor_calendar: float = 2.15e+4
+    pre_exp_factor_calendar: float = 2.15e4
     cyclic_factor: float = 2.5
