@@ -225,12 +225,28 @@ def generate_all_plots(csv_file_path, bus_id):
     
     print(f"All plots generated for {bus_id} and saved to 'plots/' folder")
 
-if __name__ == "__main__":
-    bus_ids = ["SOC40-80_Soft", "SOC50-75_Standard", "SOC30-90_Rough"]
+def find_available_simulations():
+    bus_ids = []
+    if os.path.exists("csv-results"):
+        for folder in os.listdir("csv-results"):
+            if folder.startswith("March_Day"):
+                csv_path = f"csv-results/{folder}/simulation_detailed_{folder}.csv"
+                if os.path.exists(csv_path):
+                    bus_ids.append(folder)
     
-    for bus_id in bus_ids:
-        csv_path = f"csv-results/{bus_id}/simulation_detailed_{bus_id}.csv"
-        if os.path.exists(csv_path):
+    bus_ids.sort(key=lambda x: int(x.split('Day')[1]))
+    return bus_ids
+
+if __name__ == "__main__":
+    available_days = find_available_simulations()
+    
+    if not available_days:
+        print("No simulation results found! Need to run main.py first.")
+    else:
+        print(f"Found {len(available_days)} simulation results: {available_days}")
+        
+        for bus_id in available_days:
+            csv_path = f"csv-results/{bus_id}/simulation_detailed_{bus_id}.csv"
             generate_all_plots(csv_path, bus_id)
-        else:
-            print(f"CSV file not found: {csv_path}")
+        
+        print(f"\nCompleted plotting for all {len(available_days)} days!")

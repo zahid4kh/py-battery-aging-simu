@@ -28,8 +28,8 @@ class AgingModel:
 
         #stress_term = self._calculate_stress_amplitude(avg_soc, avg_dod) using hardcoded DOD&SOC below instead
 
-        dod_stress = 1.0 + 5.0 * avg_dod  # Linear DoD dependency
-        soc_stress = 1.0 + 3.0 * (avg_soc - 0.5) ** 2 # Quadratic SoC dependency
+        dod_stress = 1.0 + 0.8 * avg_dod  # Linear DoD dependency
+        soc_stress = 1.0 + 1.2 * (avg_soc - 0.5) ** 2 # Quadratic SoC dependency
 
         efc_term = efc ** self.params.efc_exponent
         soc_chemical_term = 3.90e-3 * avg_soc + 0.20 # chemical stress -> linear relationship Equation 4.11

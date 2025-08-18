@@ -10,5 +10,5 @@ class RouteType(Enum):
 class Bus:
     id: str
     route_type: RouteType
-    battery_capacity: float = 300.0
-    initial_soc: float = 0.9
+    battery_capacity: float = 400.0
+    initial_soc: float = 0.7

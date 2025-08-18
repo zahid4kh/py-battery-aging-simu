@@ -30,7 +30,7 @@ class BusSimulation:
     ) -> SimulationResult:
         battery_state = BatteryState(
             soc=bus.initial_soc,
-            voltage=360.0,
+            voltage=self.sim_params.battery_voltage,
             current=0.0,
             temperature=conditions[0].ambient_temp,
             cycle_count=0.0,
@@ -154,24 +154,18 @@ class BusSimulation:
             soc_window: Tuple[float, float],
             nominal_capacity: float
     ) -> BatteryState:
-        new_soc = state.soc
-        current = 0.0
+        battery_power_kw = self._calculate_battery_power(condition)
 
-        charging_c_rate = self.sim_params.charging_c_rate
-        regen_c_rate = self.sim_params.regen_c_rate
-        discharge_c_rate = self.sim_params.discharge_c_rate
+        current = (battery_power_kw * 1000) / self.sim_params.battery_voltage
 
-        if condition.is_charging and state.soc < soc_window[1]:
-            current = -charging_c_rate * nominal_capacity
-            new_soc = min(soc_window[1], state.soc + (abs(current) * dt / nominal_capacity))
-        elif condition.is_regenerating and state.soc < soc_window[1]:
-            current = -regen_c_rate * nominal_capacity
-            new_soc = min(soc_window[1], state.soc + (abs(current) * dt / nominal_capacity))
-        elif not condition.is_charging:
-            current = discharge_c_rate * nominal_capacity
-            new_soc = max(soc_window[0], state.soc - (current * dt / nominal_capacity))
+        max_current = self.sim_params.max_discharge_c_rate * nominal_capacity
+        min_current = -self.sim_params.max_charge_c_rate * nominal_capacity
+        current = max(min_current, min(max_current, current))
 
-        voltage = 300.0 + (new_soc * 100.0) # not needed for cyclic aging
+        soc_change = (current * dt) / nominal_capacity
+        new_soc = max(soc_window[0], min(soc_window[1], state.soc - soc_change))
+
+        voltage = self.sim_params.battery_voltage
         throughput = state.total_ah_throughput + abs(current) * dt
 
         return BatteryState(
@@ -186,15 +180,58 @@ class BusSimulation:
             soh=state.soh
         )
 
-    def _calculate_dod_from_soc_history(self, soc_history: List[float]) -> float:
-        if len(soc_history) < 10:  # at least 10 data points
+    def _calculate_battery_power(self, condition: OperatingCondition) -> float:
+        power_needed = condition.power_consumption_kw
+        available_power = condition.available_catenary_power_kw
+        has_catenary = condition.has_catenary
+
+        if power_needed < 0: # braking energy feeds the bus
+            return power_needed
+        elif has_catenary and available_power >= power_needed: # catenary provides power
             return 0.0
+        elif has_catenary and available_power > 0: # battery is discharging
+            return power_needed - available_power
+        else:
+            return power_needed
 
-        max_soc = max(soc_history)
-        min_soc = min(soc_history)
-        dod = max_soc - min_soc
+    def _calculate_dod_from_soc_history(self, soc_history: List[float]) -> float:
+        if len(soc_history) < 10:
+            return 0.0
+        
+        cycles = []
+        in_discharge = False
+        cycle_start_soc = []
 
-        return max(0.0, dod)
+        for i in range(1, len(soc_history)):
+            current_soc = soc_history[i]
+            previous_soc = soc_history[i-1]
+
+            if not in_discharge and current_soc < previous_soc:
+                in_discharge = True
+                cycle_start_soc = previous_soc
+
+            elif in_discharge and current_soc >= previous_soc:
+                if cycle_start_soc is not None:
+                    cycle_dod = cycle_start_soc - previous_soc
+                    if cycle_dod > 0.01:
+                        cycles.append(cycle_dod)
+
+                in_discharge = False
+                cycle_start_soc = None
+        
+        if in_discharge and cycle_start_soc is not None:
+            final_dod = cycle_start_soc - soc_history[i-1]
+            if final_dod > 0.01:
+                cycles.append(final_dod)
+
+        
+
+        #max_soc = max(soc_history)
+        #min_soc = min(soc_history)
+        #dod = max_soc - min_soc
+
+        return sum(cycles)/len(cycles) if cycles else 0.0
+        #return max(0.0, dod)
 
     def get_ocv_from_soc(self, soc: float) -> float:
         # clamp SOC between (0.0-1.0)
