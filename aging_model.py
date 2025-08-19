@@ -2,6 +2,7 @@ import numpy as np
 from data.aging_parameters import AgingParameters
 from utils.utils import celsius_to_kelvin, hours_to_days
 
+
 class AgingModel:
     def __init__(self, params: AgingParameters = None):
         self.params = params if params else AgingParameters()
@@ -10,12 +11,13 @@ class AgingModel:
         temp_kelvin = celsius_to_kelvin(temp_celsius)
         time_days = hours_to_days(time_hours)
 
-        temp_term = np.exp(-self.params.activation_energy_calendar / (self.params.gas_constant * temp_kelvin))
-
-        #soc_term = 1.19e-4 * avg_soc + 0.01 # this is causing very tiny aging
-        soc_term = 1.0 + 2.0 * (avg_soc - 0.5)**2 # switching to quadratic function
+        temp_term = np.exp(-self.params.activation_energy_calendar /
+                           (self.params.gas_constant * temp_kelvin))
 
         time_term = time_days ** self.params.time_exponent
+
+        soc_term = (self.params.gamma_calendar * avg_soc +
+                    self.params.sigma_calendar) * time_term
 
         return self.params.pre_exp_factor_calendar * temp_term * soc_term * time_term
 
@@ -24,17 +26,17 @@ class AgingModel:
             return 0.0
 
         temp_kelvin = celsius_to_kelvin(temp_celsius)
-        temp_term = np.exp(-self.params.activation_energy_cyclic / (self.params.gas_constant * temp_kelvin))
+        temp_term = np.exp(-self.params.activation_energy_cyclic /
+                           (self.params.gas_constant * temp_kelvin))
 
-        #stress_term = self._calculate_stress_amplitude(avg_soc, avg_dod) using hardcoded DOD&SOC below instead
-
-        dod_stress = 1.0 + 0.8 * avg_dod  # Linear DoD dependency
-        soc_stress = 1.0 + 1.2 * (avg_soc - 0.5) ** 2 # Quadratic SoC dependency
+        stress_term = self._calculate_stress_amplitude(
+            avg_soc, avg_dod)  # Equation 4.7
 
         efc_term = efc ** self.params.efc_exponent
-        soc_chemical_term = 3.90e-3 * avg_soc + 0.20 # chemical stress -> linear relationship Equation 4.11
+        # chemical stress -> linear relationship Equation 4.11
+        soc_chemical_term = 3.90e-3 * avg_soc + 0.20
 
-        return self.params.cyclic_factor * dod_stress * soc_stress * temp_term * efc_term * soc_chemical_term
+        return self.params.cyclic_factor * stress_term * temp_term * efc_term * soc_chemical_term
 
     def _calculate_stress_amplitude(self, avg_soc: float, avg_dod: float) -> float:
         soc_min = max(0.0, avg_soc - avg_dod / 2.0)
@@ -43,7 +45,8 @@ class AgingModel:
 
     # Graphite expansion function; Equation 4.6 && Table 4.2
     def _calculate_polynomial(self, soc: float) -> float:
-        coeffs = [2.74e-13, -8.39e-11, 8.38e-9, -2.39e-7, -5.05e-6, 9.70e-5, 0.02, -6.19e-3]
+        coeffs = [2.74e-13, -8.39e-11, 8.38e-9,
+                  -2.39e-7, -5.05e-6, 9.70e-5, 0.02, -6.19e-3]
         result = 0.0
         for i, coeff in enumerate(coeffs):
             result += coeff * (soc ** (7 - i))
