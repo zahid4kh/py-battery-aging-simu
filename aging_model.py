@@ -17,7 +17,7 @@ class AgingModel:
         time_term = time_days ** self.params.time_exponent
 
         soc_term = (self.params.gamma_calendar * avg_soc +
-                    self.params.sigma_calendar) * time_term
+                    self.params.sigma_calendar)
 
         return self.params.pre_exp_factor_calendar * temp_term * soc_term * time_term
 
@@ -29,14 +29,22 @@ class AgingModel:
         temp_term = np.exp(-self.params.activation_energy_cyclic /
                            (self.params.gas_constant * temp_kelvin))
 
-        stress_term = self._calculate_stress_amplitude(
-            avg_soc, avg_dod)  # Equation 4.7
+        sei_loss = self._calculate_sei_loss(efc, temp_kelvin, avg_soc, avg_dod)
+
+        return sei_loss  # for now, returning only SEI loss without Active Material loss
+
+    def _calculate_sei_loss(self, efc: float, temp_kelvin: float, avg_soc: float, avg_dod: float) -> float:
+        temp_term = np.exp(-self.params.activation_energy_cyclic /
+                           (self.params.gas_constant * temp_kelvin))
+
+        stress_amplitude = self._calculate_stress_amplitude(
+            avg_soc, avg_dod)
+
+        soc_chemical_term = self.params.c3 * avg_soc + self.params.c4
 
         efc_term = efc ** self.params.efc_exponent
-        # chemical stress -> linear relationship Equation 4.11
-        soc_chemical_term = 3.90e-3 * avg_soc + 0.20
 
-        return self.params.cyclic_factor * stress_term * temp_term * efc_term * soc_chemical_term
+        return self.params.c2 * stress_amplitude * temp_term * efc_term * soc_chemical_term  # Equation 4.8
 
     def _calculate_stress_amplitude(self, avg_soc: float, avg_dod: float) -> float:
         soc_min = max(0.0, avg_soc - avg_dod / 2.0)
