@@ -16,8 +16,10 @@ class LabBatterySimulation:
         battery_capacity_ah: float = 3.3,
         initial_soc: float = None
     ) -> List[BatteryState]:
+        start_soc = initial_soc if initial_soc is not None else conditions[0].target_soc
+
         battery_state = BatteryState(
-            soc=initial_soc,
+            soc=start_soc,
             voltage=3.7,
             current=0.0,
             temperature=conditions[0].temperature,
@@ -29,7 +31,7 @@ class LabBatterySimulation:
         )
 
         history = [battery_state]
-        soc_history = [initial_soc]
+        soc_history = [start_soc]
 
         print(f"Starting lab simulation with {len(conditions)} conditions...")
 
