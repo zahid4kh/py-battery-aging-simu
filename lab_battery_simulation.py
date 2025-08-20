@@ -50,7 +50,8 @@ class LabBatterySimulation:
                 soc_history.pop(0)
 
             if i % 100 == 0:
-                current_dod = self._calculate_dod_from_soc_history(soc_history)
+                # current_dod = self._calculate_dod_from_soc_history(soc_history)
+                planned_dod = self._get_planned_dod_from_conditions(conditions)
                 avg_soc = np.mean(soc_history[-100:])
 
                 total_efc = battery_state.total_ah_throughput / \
@@ -66,7 +67,7 @@ class LabBatterySimulation:
                     total_efc,
                     condition.temperature,
                     avg_soc,
-                    current_dod
+                    planned_dod
                 )
 
                 total_loss = calendar_loss + cyclic_loss
@@ -83,7 +84,7 @@ class LabBatterySimulation:
                     calendar_age=condition.time / 24.0,
                     capacity=new_capacity,
                     soh=new_soh,
-                    avg_dod=current_dod
+                    avg_dod=planned_dod
                 )
 
             history.append(battery_state)
@@ -95,6 +96,12 @@ class LabBatterySimulation:
         print(
             f"Simulation complete! Final SOH: {history[-1].soh:.2f}%, EFC: {history[-1].cycle_count:.1f}")
         return history
+
+    def _get_planned_dod_from_conditions(self, conditions):
+        recent_socs = [c.target_soc for c in conditions[-1000:]]
+        if len(recent_socs) > 10:
+            return max(recent_socs) - min(recent_socs)
+        return 0.0
 
     def _update_lab_battery_state(
         self,
