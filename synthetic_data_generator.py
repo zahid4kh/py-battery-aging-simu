@@ -222,11 +222,12 @@ class SyntheticDataGenerator:
             temperature: float,
             duration_days: float
     ) -> List[LabTestCondition]:
-        """ Calendar aging with 3.2.4 characterization"""
 
         conditions = []
         current_time = 0.0
         time_step_hours = 1.0
+
+        current_time = self._add_preconditioning(conditions, current_time, temperature, 0.1)
 
         current_time = self._add_calendar_characterization(
             conditions, current_time, temperature, 0.1
