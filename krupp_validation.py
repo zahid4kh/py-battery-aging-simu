@@ -8,7 +8,7 @@ def validate_krupp_cyclic_matrix():
     os.makedirs('csv-cyclic', exist_ok=True)
     # Table 4.3
     krupp_tests = [
-        # No. DoD, ØSoC, C-rate, Expected aging mode
+        # No. DoD, SoC, C-rate, Expected aging mode
         (1, 0.05, 0.50, 0.5, "LLI"),
         (2, 0.10, 0.50, 0.5, "LLI"),
         (3, 0.20, 0.50, 0.5, "LLI"),
@@ -30,7 +30,8 @@ def validate_krupp_cyclic_matrix():
     aging_model = AgingModel()
     simulator = LabBatterySimulation(aging_model)
 
-    target_efc = 200
+    cycles_per_characterization = 100  # "After every 100 capacity cycles"
+    num_characterization_blocks = 8    # To reach ~800 EFC like Figure 4.7
     temperature = 23.0
 
     for test_no, dod, soc_avg, c_rate, expected_aging in krupp_tests:
@@ -39,7 +40,8 @@ def validate_krupp_cyclic_matrix():
             soc_avg=soc_avg,
             c_rate=c_rate,
             temperature=temperature,
-            target_efc=target_efc
+            cycles_per_characterization=cycles_per_characterization,
+            num_characterization_blocks=num_characterization_blocks
         )
 
         start_soc = min(1.0, soc_avg + dod / 2)

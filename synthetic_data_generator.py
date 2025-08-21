@@ -13,7 +13,8 @@ class SyntheticDataGenerator:
             soc_avg: float,
             c_rate: float,
             temperature: float,
-            target_efc: float,
+            cycles_per_characterization: int = 100,
+            num_characterization_blocks: int = 8,
             time_step_hours: float = 0.1
     ) -> List[LabTestCondition]:
 
@@ -24,72 +25,72 @@ class SyntheticDataGenerator:
         soc_min = max(0.0, soc_avg - dod / 2)
         soc_max = min(1.0, soc_avg + dod / 2)
 
-        print(f"Krupp Cyclic: DoD={dod * 100:.0f}%, ØSoC={soc_avg * 100:.0f}%, C-rate={c_rate}, T={temperature}°C")
+        print(f"Krupp Cyclic: DoD={dod * 100:.0f}%, Avg-SoC={soc_avg * 100:.0f}%, C-rate={c_rate}, T={temperature}°C")
         print(f"SOC Window: {soc_min * 100:.1f}% - {soc_max * 100:.1f}%")
+        print(f"Krupp Method: {cycles_per_characterization} cycles per characterization, {num_characterization_blocks} blocks")
 
         # 4.4.4: preconditioning (5 cycles at 1C)
         print("Adding preconditioning: 5 cycles at 1C")
         current_time = self._add_preconditioning(conditions, current_time, temperature, time_step_hours)
 
-        # 4.4.4: Simple cycling times based on C-rate
+        # Krupp's block methodology from Section 4.4.2
         discharge_time = dod / c_rate
         charge_time = dod / c_rate
-        cycles_needed = int(target_efc / dod) + 1
-
         current_soc = soc_max
 
-        for cycle in range(cycles_needed):
+        for block in range(num_characterization_blocks):
+            print(f"Starting characterization block {block + 1}/{num_characterization_blocks}")
+            
+            for cycle in range(cycles_per_characterization):
+                
+                # PHASE 1: DISCHARGE at specified C-rate
+                discharge_steps = int(discharge_time / time_step_hours)
+                for step in range(discharge_steps):
+                    progress = step / discharge_steps
+                    target_soc = soc_max - (progress * dod)
 
-            # PHASE 1: DISCHARGE at specified C-rate
-            discharge_steps = int(discharge_time / time_step_hours)
-            for step in range(discharge_steps):
-                progress = step / discharge_steps
-                target_soc = soc_max - (progress * dod)
+                    conditions.append(LabTestCondition(
+                        time=current_time,
+                        temperature=temperature,
+                        target_soc=target_soc,
+                        is_charging=False,
+                        c_rate=c_rate,
+                        cycle_number=cycle_number
+                    ))
+                    current_time += time_step_hours
 
-                conditions.append(LabTestCondition(
-                    time=current_time,
-                    temperature=temperature,
-                    target_soc=target_soc,
-                    is_charging=False,
-                    c_rate=c_rate,
-                    cycle_number=cycle
-                ))
-                current_time += time_step_hours
+                current_soc = soc_min
 
-            current_soc = soc_min
+                # PHASE 2: CHARGE at specified C-rate
+                charge_steps = int(charge_time / time_step_hours)
+                for step in range(charge_steps):
+                    progress = step / charge_steps
+                    target_soc = soc_min + (progress * dod)
 
-            # PHASE 2: CHARGE at specified C-rate
-            charge_steps = int(charge_time / time_step_hours)
-            for step in range(charge_steps):
-                progress = step / charge_steps
-                target_soc = soc_min + (progress * dod)
+                    conditions.append(LabTestCondition(
+                        time=current_time,
+                        temperature=temperature,
+                        target_soc=target_soc,
+                        is_charging=True,
+                        c_rate=-c_rate,
+                        cycle_number=cycle_number
+                    ))
+                    current_time += time_step_hours
 
-                conditions.append(LabTestCondition(
-                    time=current_time,
-                    temperature=temperature,
-                    target_soc=target_soc,
-                    is_charging=True,
-                    c_rate=-c_rate,
-                    cycle_number=cycle
-                ))
-                current_time += time_step_hours
+                current_soc = soc_max
+                cycle_number += 1
 
-            current_soc = soc_max
+            # Characterization after every 100 cycles
+            print(f"Adding characterization after {cycles_per_characterization} cycles")
+            current_time = self._add_cyclic_characterization(
+                conditions, current_time, temperature, time_step_hours, cycle_number, current_soc
+            )
+            
+            current_efc = cycle_number * dod
+            print(f"Block {block + 1} complete: {cycle_number} total cycles, {current_efc:.1f} EFC, {current_time:.1f}h")
 
-            cycle_number += 1
-
-            # 4.4.4: Characterization every 100 cycles
-            if cycle > 0 and cycle % 100 == 0:
-                print(f"Adding characterization at cycle {cycle}")
-                current_time = self._add_cyclic_characterization(
-                    conditions, current_time, temperature, time_step_hours, cycle, current_soc
-                )
-
-            if cycle % 50 == 0:
-                current_efc = cycle * dod
-                print(f"Cycle {cycle}, EFC: {current_efc:.1f}, Time: {current_time:.1f}h")
-
-        print(f"Generated {len(conditions)} conditions, {cycles_needed} cycles")
+        total_cycles = num_characterization_blocks * cycles_per_characterization
+        print(f"Generated {len(conditions)} conditions, {total_cycles} cycles total")
         return conditions
 
     def _add_preconditioning(self, conditions, current_time, temperature, time_step_hours):

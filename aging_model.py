@@ -16,8 +16,7 @@ class AgingModel:
 
         time_term = time_days ** self.params.time_exponent
 
-        soc_term = (self.params.gamma_calendar * avg_soc +
-                    self.params.sigma_calendar)
+        soc_term = (self.params.gamma_calendar * avg_soc*100 + self.params.sigma_calendar)
 
         calendar_loss = self.params.pre_exp_factor_calendar * temp_term * soc_term * time_term
 
@@ -69,7 +68,7 @@ class AgingModel:
         # Paris Law analogy
         am_loss = self.params.c5 * (stress_amplitude ** self.params.m) * efc
 
-        return am_loss / 100.0
+        return am_loss
 
     def _calculate_stress_amplitude(self, avg_soc: float, avg_dod: float) -> float:
         soc_min = max(0.0, avg_soc - avg_dod / 2.0)
