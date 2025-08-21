@@ -127,67 +127,6 @@ def validate_calendar_aging():
 
     return results
 
-
-def validate_cyclic_aging():
-
-    print("=== KRUPP CYCLIC AGING VALIDATION ===")
-
-    # doesn't specify exact DOD values -> using reasonable range
-    dod_values = [0.2, 0.5, 0.8]
-    soc_values = [0.5, 0.7, 0.9]
-    temperatures = [23]
-    target_efc = 100
-
-    results = []
-    generator = SyntheticDataGenerator(battery_capacity_ah=3.3)
-    aging_model = AgingModel()
-    simulator = LabBatterySimulation(aging_model)
-
-    total_tests = len(dod_values) * len(soc_values) * len(temperatures)
-    current_test = 0
-
-    for dod in dod_values:
-        for soc_avg in soc_values:
-            for temp in temperatures:
-                current_test += 1
-                print(f"\n--- Test {current_test}/{total_tests} ---")
-                print(
-                    f"DoD={dod*100:.0f}%, SoC_avg={soc_avg*100:.0f}%, T={temp}°C")
-
-                conditions = generator.generate_cyclic_aging_profile(
-                    dod=dod,
-                    soc_avg=soc_avg,
-                    temperature=temp,
-                    target_efc=target_efc
-                )
-
-                start_soc = min(1.0, soc_avg + dod/2)
-
-                history = simulator.simulate_lab_test(
-                    conditions,
-                    battery_capacity_ah=3.3,
-                    initial_soc=start_soc
-                )
-
-                final_state = history[-1]
-                capacity_loss = (3.3 - final_state.capacity) / 3.3 * 100
-
-                result = {
-                    'dod': dod,
-                    'soc_avg': soc_avg,
-                    'temperature': temp,
-                    'final_efc': final_state.cycle_count,
-                    'capacity_loss_percent': capacity_loss,
-                    'final_soh': final_state.soh
-                }
-                results.append(result)
-
-                print(
-                    f"Result: {capacity_loss:.2f}% loss at {final_state.cycle_count:.1f} EFC")
-
-    return results
-
-
 if __name__ == "__main__":
     calendar_results = validate_calendar_aging()
 
