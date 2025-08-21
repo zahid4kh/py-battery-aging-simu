@@ -1,0 +1,2 @@
+test_no,dod_percent,soc_avg_percent,c_rate,expected_aging,final_efc,capacity_loss_percent,final_soh
+7,80.0,50.0,0.5,LLI+LAM,207.02500000001967,0.17157931044231242,99.82842068955769

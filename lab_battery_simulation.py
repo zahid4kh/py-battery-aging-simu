@@ -33,8 +33,6 @@ class LabBatterySimulation:
         history = [battery_state]
         soc_history = [start_soc]
 
-        print(f"Starting lab simulation with {len(conditions)} conditions...")
-
         for i, condition in enumerate(conditions[1:], 1):
             prev_condition = conditions[i-1]
             dt = condition.time - prev_condition.time
@@ -50,7 +48,6 @@ class LabBatterySimulation:
                 soc_history.pop(0)
 
             if i % 100 == 0:
-                # current_dod = self._calculate_dod_from_soc_history(soc_history)
                 planned_dod = self._get_planned_dod_from_conditions(conditions)
                 avg_soc = np.mean(soc_history[-100:])
 
@@ -88,13 +85,6 @@ class LabBatterySimulation:
                 )
 
             history.append(battery_state)
-
-            if i % 1000 == 0:
-                print(
-                    f"Step {i}/{len(conditions)}, EFC: {battery_state.cycle_count:.1f}, SOH: {battery_state.soh:.2f}%")
-
-        print(
-            f"Simulation complete! Final SOH: {history[-1].soh:.2f}%, EFC: {history[-1].cycle_count:.1f}")
         return history
 
     def _get_planned_dod_from_conditions(self, conditions):

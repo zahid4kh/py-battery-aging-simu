@@ -1,0 +1,2 @@
+test_no,soc_percent,temperature,duration_days,capacity_loss_percent,final_soh
+5,90.0,23,60,0.20816200103294474,99.79183799896705

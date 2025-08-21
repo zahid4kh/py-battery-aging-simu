@@ -1,12 +1,11 @@
 from synthetic_data_generator import SyntheticDataGenerator
 from lab_battery_simulation import LabBatterySimulation
 from aging_model import AgingModel
-import numpy as np
-
+import csv
+import os
 
 def validate_krupp_cyclic_matrix():
-    print("=== KRUPP TABLE 4.3 CYCLIC AGING MATRIX ===")
-
+    os.makedirs('csv-cyclic', exist_ok=True)
     # Table 4.3
     krupp_tests = [
         # No. DoD, ØSoC, C-rate, Expected aging mode
@@ -35,9 +34,6 @@ def validate_krupp_cyclic_matrix():
     temperature = 23.0
 
     for test_no, dod, soc_avg, c_rate, expected_aging in krupp_tests:
-        print(f"\n--- Test {test_no}/13 (Krupp Table 4.3) ---")
-        print(f"DoD={dod * 100:.0f}%, ØSoC={soc_avg * 100:.0f}%, C-rate={c_rate}, Expected: {expected_aging}")
-
         conditions = generator.generate_cyclic_aging_profile(
             dod=dod,
             soc_avg=soc_avg,
@@ -59,8 +55,8 @@ def validate_krupp_cyclic_matrix():
 
         result = {
             'test_no': test_no,
-            'dod': dod,
-            'soc_avg': soc_avg,
+            'dod_percent': dod * 100,
+            'soc_avg_percent': soc_avg * 100,
             'c_rate': c_rate,
             'expected_aging': expected_aging,
             'final_efc': final_state.cycle_count,
@@ -69,20 +65,20 @@ def validate_krupp_cyclic_matrix():
         }
         results.append(result)
 
-        print(f"Result: {capacity_loss:.2f}% loss at {final_state.cycle_count:.1f} EFC")
+        with open(f'csv-cyclic/test_{test_no:02d}.csv', 'w', newline='') as f:
+            writer = csv.DictWriter(f, fieldnames=result.keys())
+            writer.writeheader()
+            writer.writerow(result)
 
-    # Summary
-    print(f"\n=== KRUPP MATRIX SUMMARY ===")
-    for result in results:
-        print(f"Test {result['test_no']:2d}: DoD={result['dod'] * 100:3.0f}%, "
-              f"ØSoC={result['soc_avg'] * 100:2.0f}%, C={result['c_rate']:4.2f} → "
-              f"{result['capacity_loss_percent']:5.2f}% loss ({result['expected_aging']})")
+    with open('csv-cyclic/summary.csv', 'w', newline='') as f:
+        writer = csv.DictWriter(f, fieldnames=results[0].keys())
+        writer.writeheader()
+        writer.writerows(results)
 
     return results
 
 def validate_calendar_aging():
-
-    print("=== KRUPP CALENDAR AGING VALIDATION ===")
+    os.makedirs('csv-calendar', exist_ok=True)
 
     soc_values = [0.5, 0.7, 0.9]
     temperatures = [23, 40]
@@ -93,10 +89,10 @@ def validate_calendar_aging():
     aging_model = AgingModel()
     simulator = LabBatterySimulation(aging_model)
 
+    test_number = 0
     for soc in soc_values:
         for temp in temperatures:
-            print(
-                f"\nTesting: {soc*100:.0f}% SOC, {temp}°C, {duration_days} days")
+            test_number += 1
 
             conditions = generator.generate_calendar_aging_profile(
                 soc=soc,
@@ -114,7 +110,8 @@ def validate_calendar_aging():
             capacity_loss = (3.3 - final_state.capacity) / 3.3 * 100
 
             result = {
-                'soc': soc,
+                'test_no': test_number,
+                'soc_percent': soc * 100,
                 'temperature': temp,
                 'duration_days': duration_days,
                 'capacity_loss_percent': capacity_loss,
@@ -122,8 +119,15 @@ def validate_calendar_aging():
             }
             results.append(result)
 
-            print(
-                f"Result: {capacity_loss:.3f}% loss after {duration_days} days")
+            with open(f'csv-calendar/test_{test_number:02d}.csv', 'w', newline='') as f:
+                writer = csv.DictWriter(f, fieldnames=result.keys())
+                writer.writeheader()
+                writer.writerow(result)
+
+    with open('csv-calendar/summary.csv', 'w', newline='') as f:
+        writer = csv.DictWriter(f, fieldnames=results[0].keys())
+        writer.writeheader()
+        writer.writerows(results)
 
     return results
 
