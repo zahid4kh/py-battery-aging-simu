@@ -36,7 +36,7 @@ class AgingModel:
                            (self.params.gas_constant * temp_kelvin))
 
         stress_amplitude = self._calculate_stress_amplitude(avg_soc, avg_dod)
-        soc_chemical_term = self._calculate_soc_dependency_L(avg_soc)
+        soc_chemical_term = self._calculate_soc_dependency_S(avg_soc)
         efc_term = efc ** self.params.efc_exponent
 
         sei_loss_percent = self.params.c2 * stress_amplitude * temp_term * efc_term * soc_chemical_term
