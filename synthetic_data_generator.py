@@ -17,6 +17,7 @@ class SyntheticDataGenerator:
             num_characterization_blocks: int = 8,
             time_step_hours: float = 0.1
     ) -> List[LabTestCondition]:
+        base_cycle_time = 4.0
 
         conditions = []
         current_time = 0.0
@@ -37,6 +38,9 @@ class SyntheticDataGenerator:
         discharge_time = dod / c_rate
         charge_time = dod / c_rate
         current_soc = soc_max
+        actual_cycle_time = discharge_time + charge_time
+
+        rest_time = max(0.0, base_cycle_time - actual_cycle_time)
 
         for block in range(num_characterization_blocks):
             print(f"Starting characterization block {block + 1}/{num_characterization_blocks}")
@@ -59,7 +63,18 @@ class SyntheticDataGenerator:
                     ))
                     current_time += time_step_hours
 
-                current_soc = soc_min
+                if rest_time > 0:
+                    rest_steps = int(rest_time / time_step_hours)
+                    for _ in range(rest_steps):
+                        conditions.append(LabTestCondition(
+                            time=current_time,
+                            temperature=temperature,
+                            target_soc=soc_max,
+                            is_charging=False,
+                            c_rate=0.0,
+                            cycle_number=cycle_number
+                        ))
+                        current_time += time_step_hours
 
                 # PHASE 2: CHARGE at specified C-rate
                 charge_steps = int(charge_time / time_step_hours)
