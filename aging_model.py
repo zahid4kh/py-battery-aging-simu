@@ -99,11 +99,11 @@ class AgingModel:
 
     # Graphite expansion function; Equation 4.6 && Table 4.2
     def _calculate_polynomial(self, soc: float) -> float:
-        if soc > 1.0:
-            soc = soc / 100.0
+        if soc <= 1.0:
+            soc = soc * 100.0
 
-        coeffs = [2.74e-13, -8.39e-11, 8.38e-9, -
-                  2.39e-7, -5.05e-6, 9.70e-5, 0.02, -6.19e-3]
+        coeffs = [2.74e-13, -8.39e-11, 8.38e-9,
+                  -2.39e-7, -5.05e-6, 9.70e-5, 0.02, -6.19e-3]
         result = 0.0
         for i, coeff in enumerate(coeffs):
             result += coeff * (soc ** (7 - i))
