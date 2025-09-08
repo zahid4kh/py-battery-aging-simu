@@ -40,13 +40,13 @@ class AgingModel:
                            (self.params.gas_constant * temp_kelvin))
 
         stress_amplitude = self._calculate_stress_amplitude(avg_soc, avg_dod)
-        soc_chemical_term = self._calculate_soc_dependency_S(avg_soc)
+        soc_chemical_term = self._calculate_soc_dependency_L(avg_soc)
         efc_term = efc ** self.params.efc_exponent
 
         sei_loss_percent = self.params.c2 * stress_amplitude * \
-            temp_term * efc_term * soc_chemical_term
+                           temp_term * efc_term * soc_chemical_term
 
-        return sei_loss_percent / 100.0
+        return sei_loss_percent / 100000.0
 
     def _calculate_soc_dependency_E(self, avg_soc: float) -> float:
         """Exponential SoC dependency (Equation 4.9)"""
@@ -71,14 +71,14 @@ class AgingModel:
 
         dod_excess = avg_dod - 0.6
         if avg_dod >= 0.8:
-            dod_factor = np.exp(dod_excess * 8.0)
+            dod_factor = np.exp(dod_excess * 2.0)  # Changed from 8.0 to 2.0
         else:
-            dod_factor = dod_excess * 5.0
+            dod_factor = dod_excess * 2.0  # Changed from 5.0 to 2.0
 
         am_loss = self.params.c5 * dod_factor * stress_amplitude * \
-            (efc ** 0.8) * 5.0
+                  (efc ** 0.8) * 1.0  # Changed from 5.0 to 1.0
 
-        return max(0.0, am_loss / 100.0)
+        return max(0.0, am_loss / 1000.0)  # Changed from 100.0 to 1000.0
 
     def _calculate_stress_amplitude(self, avg_soc: float, avg_dod: float) -> float:
         soc_min = max(0.0, avg_soc - avg_dod / 2.0)
