@@ -9,5 +9,4 @@ plot-all-super.py
 /csv-results
 /csv-calendar
 /csv-cyclic
-plot_results.py
 *.sh

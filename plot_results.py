@@ -120,10 +120,6 @@ def plot_cyclic_aging():
         print(f"Error plotting cyclic aging: {e}")
 
 
-def test_stress_amplitude_krupp_validation():
-    """Test stress amplitude against Krupp's Figure 4.2b"""
-    
-
 def calculate_stress_amplitude(avg_soc: float, avg_dod: float) -> float:
     soc_min = max(0.0, avg_soc - avg_dod / 2.0)
     soc_max = min(1.0, avg_soc + avg_dod / 2.0)
