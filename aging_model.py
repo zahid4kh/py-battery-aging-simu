@@ -44,7 +44,7 @@ class AgingModel:
         efc_term = efc ** self.params.efc_exponent
 
         sei_loss_percent = self.params.c2 * stress_amplitude * \
-                           temp_term * efc_term * soc_chemical_term
+            temp_term * efc_term * soc_chemical_term
 
         return sei_loss_percent / 100000.0
 
@@ -76,7 +76,7 @@ class AgingModel:
             dod_factor = dod_excess * 2.0  # Changed from 5.0 to 2.0
 
         am_loss = self.params.c5 * dod_factor * stress_amplitude * \
-                  (efc ** 0.8) * 1.0  # Changed from 5.0 to 1.0
+            (efc ** 0.8) * 1.0  # Changed from 5.0 to 1.0
 
         return max(0.0, am_loss / 1000.0)  # Changed from 100.0 to 1000.0
 
