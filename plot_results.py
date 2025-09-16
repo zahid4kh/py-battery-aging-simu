@@ -10,6 +10,7 @@ def create_plots():
 
     plot_calendar_aging()
     plot_cyclic_aging()
+    test_stress_amplitude()
 
 
 def plot_calendar_aging():
@@ -120,6 +121,51 @@ def plot_cyclic_aging():
         print(f"Error plotting cyclic aging: {e}")
 
 
+def test_stress_amplitude():
+    from aging_model import AgingModel
+    
+    model = AgingModel()
+    
+    soc_values = np.linspace(0.05, 0.95, 91)
+    dod_fixed = 0.05
+    stress_soc = []
+    
+    print("SoC [%] | Stress Amplitude | Notes")
+    print("-" * 45)
+    
+    for soc in soc_values:
+        if soc - dod_fixed/2 >= 0 and soc + dod_fixed/2 <= 1.0:
+            stress = model._calculate_stress_amplitude(soc, dod_fixed)
+            stress_soc.append(stress)
+            
+            if len(stress_soc) % 10 == 1:
+                print(f"{soc*100:5.1f}%  | {stress:.8f}")
+        else:
+            stress_soc.append(np.nan)
+    
+    # actual minimum
+    valid_stress = [s for s in stress_soc if not np.isnan(s)]
+    valid_soc = [soc for soc, s in zip(soc_values, stress_soc) if not np.isnan(s)]
+    
+    min_idx = np.argmin(valid_stress)
+    min_stress_soc = valid_soc[min_idx]
+    min_stress_val = valid_stress[min_idx]
+    
+    print(f"\nActual minimum: {min_stress_soc*100:.1f}% SoC, σ = {min_stress_val:.8f}")
+    
+    plt.figure(figsize=(10, 6))
+    plt.plot(np.array(valid_soc) * 100, valid_stress, 'b-', linewidth=2)
+    plt.axvline(min_stress_soc * 100, color='r', linestyle='--', 
+                label=f'Minimum at {min_stress_soc*100:.1f}%')
+    plt.xlabel('ØSoC [%]')
+    plt.ylabel('Stress Amplitude σ')
+    plt.title('Stress vs ØSoC at 5% DoD (No Boundary Effects)')
+    plt.grid(True, alpha=0.3)
+    plt.legend()
+    plt.savefig('plots/stress_amplitude.png',
+                    dpi=150, bbox_inches='tight')
+    plt.close()
+
 def calculate_stress_amplitude(avg_soc: float, avg_dod: float) -> float:
     soc_min = max(0.0, avg_soc - avg_dod / 2.0)
     soc_max = min(1.0, avg_soc + avg_dod / 2.0)
@@ -128,13 +174,15 @@ def calculate_stress_amplitude(avg_soc: float, avg_dod: float) -> float:
 
 def calculate_polynomial(soc: float) -> float:
     if soc <= 1.0:
-        soc = soc * 100.0
+            soc_percent = soc * 100.0
+    else:
+        soc_percent = soc
 
     coeffs = [2.74e-13, -8.39e-11, 8.38e-9,
-              -2.39e-7, -5.05e-6, 9.70e-5, 0.02, -6.19e-3]
+                -2.39e-7, -5.05e-6, 9.70e-5, 0.02, -6.19e-3]
     result = 0.0
     for i, coeff in enumerate(coeffs):
-        result += coeff * (soc ** (7 - i))
+        result += coeff * (soc_percent ** (7 - i))
 
     return max(0.0, result)
 
