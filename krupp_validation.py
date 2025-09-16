@@ -26,7 +26,7 @@ def validate_krupp_cyclic_matrix():
     ]
 
     results = []
-    generator = SyntheticDataGenerator(battery_capacity_ah=3.3)
+    generator = SyntheticDataGenerator(battery_capacity_ah=64.0)
     aging_model = AgingModel()
     simulator = LabBatterySimulation(aging_model)
 
@@ -48,12 +48,12 @@ def validate_krupp_cyclic_matrix():
 
         history = simulator.simulate_lab_test(
             conditions,
-            battery_capacity_ah=3.3,
+            battery_capacity_ah=64.0,
             initial_soc=start_soc
         )
 
         final_state = history[-1]
-        capacity_loss = (3.3 - final_state.capacity) / 3.3 * 100
+        capacity_loss = (64.0 - final_state.capacity) / 64.0 * 100
 
         result = {
             'test_no': test_no,
@@ -87,7 +87,7 @@ def validate_calendar_aging():
     duration_days = 60
 
     results = []
-    generator = SyntheticDataGenerator(battery_capacity_ah=3.3)
+    generator = SyntheticDataGenerator(battery_capacity_ah=64.0)
     aging_model = AgingModel()
     simulator = LabBatterySimulation(aging_model)
 
@@ -104,12 +104,12 @@ def validate_calendar_aging():
 
             history = simulator.simulate_lab_test(
                 conditions,
-                battery_capacity_ah=3.3,
+                battery_capacity_ah=64.0,
                 initial_soc=soc
             )
 
             final_state = history[-1]
-            capacity_loss = (3.3 - final_state.capacity) / 3.3 * 100
+            capacity_loss = (64.0 - final_state.capacity) / 64.0 * 100
 
             result = {
                 'test_no': test_number,
@@ -134,9 +134,5 @@ def validate_calendar_aging():
     return results
 
 if __name__ == "__main__":
-    calendar_results = validate_calendar_aging()
-
-    response = input("\nRun Table 4.3 cyclic matrix? (y/n): ")
-    if response.lower() == 'y':
-        cyclic_results = validate_krupp_cyclic_matrix()
-        print("\nKrupp validation complete!")
+    validate_calendar_aging()
+    validate_krupp_cyclic_matrix()

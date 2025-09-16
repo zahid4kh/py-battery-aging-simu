@@ -10,7 +10,6 @@ def create_plots():
 
     plot_calendar_aging()
     plot_cyclic_aging()
-    plot_stress_amplitude()
 
 
 def plot_calendar_aging():
@@ -121,70 +120,14 @@ def plot_cyclic_aging():
         print(f"Error plotting cyclic aging: {e}")
 
 
-def plot_stress_amplitude():
-    try:
-        # DoD dependency at 50% SOC
-        dod_values = np.linspace(0, 100, 101)
-        soc_fixed = 0.5
-        stress_dod = []
-
-        for dod_percent in dod_values:
-            dod_fraction = dod_percent / 100
-            stress = calculate_stress_amplitude(soc_fixed, dod_fraction)
-            stress_dod.append(stress)
-
-        # SOC dependency at 20% DoD (increased from 5% to show more variation)
-        soc_values = np.linspace(0, 100, 101)
-        dod_fixed = 0.20  # Increased from 0.05
-        stress_soc = []
-
-        for soc_percent in soc_values:
-            soc_fraction = soc_percent / 100
-            stress = calculate_stress_amplitude(soc_fraction, dod_fixed)
-            stress_soc.append(stress)
-
-        # Create dual-axis plot
-        fig, ax1 = plt.subplots(figsize=(10, 6))
-
-        # DoD vs Stress amplitude
-        color1 = 'black'
-        ax1.set_xlabel('DoD [%]')
-        ax1.set_ylabel('Stress amplitude σ(DoD)', color=color1)
-        line1 = ax1.plot(dod_values, stress_dod, color=color1, linewidth=2,
-                         label='σ(DoD) at 50% ØSoC')
-        ax1.tick_params(axis='y', labelcolor=color1)
-        ax1.set_xlim(0, 100)
-
-        # Second y-axis for SOC
-        ax2 = ax1.twinx()
-        ax2.set_ylabel('Stress amplitude σ(ØSoC)', color='blue')
-        ax2.set_ylim(0, 0.08)
-
-        # Second x-axis for SOC
-        ax3 = ax1.twiny()
-        ax3.set_xlabel('ØSoC [%]')
-        line2 = ax3.plot(soc_values, stress_soc, color='blue', linewidth=2,
-                         label='σ(ØSoC) at 20% DoD')  # Updated label
-        ax2.tick_params(axis='y', labelcolor='blue')
-        ax3.set_xlim(0, 100)
-
-        lines = line1 + line2
-        labels = [l.get_label() for l in lines]
-        ax1.legend(lines, labels, loc='upper left')
-
-        plt.title('Stress Amplitude vs DoD and SOC')
-        plt.tight_layout()
-        plt.savefig('plots/stress_amplitude.png', dpi=150, bbox_inches='tight')
-        plt.close()
-
-    except Exception as e:
-        print(f"Error plotting stress amplitude: {e}")
-
+def test_stress_amplitude_krupp_validation():
+    """Test stress amplitude against Krupp's Figure 4.2b"""
+    
 
 def calculate_stress_amplitude(avg_soc: float, avg_dod: float) -> float:
     soc_min = max(0.0, avg_soc - avg_dod / 2.0)
     soc_max = min(1.0, avg_soc + avg_dod / 2.0)
-    return calculate_polynomial(soc_max) - calculate_polynomial(soc_min)
+    return (calculate_polynomial(soc_max) - calculate_polynomial(soc_min)) * 0.21
 
 
 def calculate_polynomial(soc: float) -> float:

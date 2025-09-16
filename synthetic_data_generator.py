@@ -4,7 +4,7 @@ from data.lab_test_condition import LabTestCondition
 
 
 class SyntheticDataGenerator:
-    def __init__(self, battery_capacity_ah: float = 3.3):
+    def __init__(self, battery_capacity_ah: float = 64.0):
         self.battery_capacity = battery_capacity_ah
 
     def generate_cyclic_aging_profile(
@@ -17,7 +17,6 @@ class SyntheticDataGenerator:
             num_characterization_blocks: int = 8,
             time_step_hours: float = 0.1
     ) -> List[LabTestCondition]:
-        base_cycle_time = 4.0
 
         conditions = []
         current_time = 0.0
@@ -37,10 +36,10 @@ class SyntheticDataGenerator:
         # Krupp's block methodology from Section 4.4.2
         discharge_time = dod / c_rate
         charge_time = dod / c_rate
-        current_soc = soc_max
         actual_cycle_time = discharge_time + charge_time
-
+        base_cycle_time = 4.0
         rest_time = max(0.0, base_cycle_time - actual_cycle_time)
+        print(f"Cycle timing: discharge={discharge_time:.2f}h, charge={charge_time:.2f}h, rest={rest_time:.2f}h, total={base_cycle_time:.2f}h")
 
         for block in range(num_characterization_blocks):
             print(f"Starting characterization block {block + 1}/{num_characterization_blocks}")
@@ -59,22 +58,10 @@ class SyntheticDataGenerator:
                         target_soc=target_soc,
                         is_charging=False,
                         c_rate=c_rate,
-                        cycle_number=cycle_number
+                        cycle_number=cycle_number,
+                        dod=dod
                     ))
                     current_time += time_step_hours
-
-                if rest_time > 0:
-                    rest_steps = int(rest_time / time_step_hours)
-                    for _ in range(rest_steps):
-                        conditions.append(LabTestCondition(
-                            time=current_time,
-                            temperature=temperature,
-                            target_soc=soc_max,
-                            is_charging=False,
-                            c_rate=0.0,
-                            cycle_number=cycle_number
-                        ))
-                        current_time += time_step_hours
 
                 # PHASE 2: CHARGE at specified C-rate
                 charge_steps = int(charge_time / time_step_hours)
@@ -88,17 +75,31 @@ class SyntheticDataGenerator:
                         target_soc=target_soc,
                         is_charging=True,
                         c_rate=-c_rate,
-                        cycle_number=cycle_number
+                        cycle_number=cycle_number,
+                        dod=dod
                     ))
                     current_time += time_step_hours
 
-                current_soc = soc_max
+                if rest_time > 0:
+                    rest_steps = int(rest_time / time_step_hours)
+                    for _ in range(rest_steps):
+                        conditions.append(LabTestCondition(
+                            time=current_time,
+                            temperature=temperature,
+                            target_soc=soc_max,
+                            is_charging=False,
+                            c_rate=0.0,
+                            cycle_number=cycle_number,
+                            dod=dod
+                        ))
+                        current_time += time_step_hours
+
                 cycle_number += 1
 
             # Characterization after every 100 cycles
             print(f"Adding characterization after {cycles_per_characterization} cycles")
             current_time = self._add_cyclic_characterization(
-                conditions, current_time, temperature, time_step_hours, cycle_number, current_soc
+                conditions, current_time, temperature, time_step_hours, cycle_number, soc_max
             )
             
             current_efc = cycle_number * dod

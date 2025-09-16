@@ -37,16 +37,16 @@ class AgingModel:
     def _calculate_sei_loss(self, efc: float, temp_celsius: float, avg_soc: float, avg_dod: float) -> float:
         temp_kelvin = celsius_to_kelvin(temp_celsius)
         temp_term = np.exp(-self.params.activation_energy_cyclic /
-                           (self.params.gas_constant * temp_kelvin))
+                        (self.params.gas_constant * temp_kelvin))
 
         stress_amplitude = self._calculate_stress_amplitude(avg_soc, avg_dod)
         soc_chemical_term = self._calculate_soc_dependency_L(avg_soc)
         efc_term = efc ** self.params.efc_exponent
 
         sei_loss_percent = self.params.c2 * stress_amplitude * \
-            temp_term * efc_term * soc_chemical_term
+                        temp_term * efc_term * soc_chemical_term
 
-        return sei_loss_percent / 100000.0
+        return sei_loss_percent / 10000.0
 
     def _calculate_soc_dependency_E(self, avg_soc: float) -> float:
         """Exponential SoC dependency (Equation 4.9)"""
@@ -71,14 +71,13 @@ class AgingModel:
 
         dod_excess = avg_dod - 0.6
         if avg_dod >= 0.8:
-            dod_factor = np.exp(dod_excess * 2.0)  # Changed from 8.0 to 2.0
+            dod_factor = np.exp(dod_excess * 3.0)
         else:
-            dod_factor = dod_excess * 2.0  # Changed from 5.0 to 2.0
+            dod_factor = dod_excess * 5.0
 
-        am_loss = self.params.c5 * dod_factor * stress_amplitude * \
-            (efc ** 0.8) * 1.0  # Changed from 5.0 to 1.0
+        am_loss = self.params.c5 * dod_factor * stress_amplitude * (efc ** 0.8)
 
-        return max(0.0, am_loss / 1000.0)  # Changed from 100.0 to 1000.0
+        return max(0.0, am_loss / 1000.0)
 
     def _calculate_stress_amplitude(self, avg_soc: float, avg_dod: float) -> float:
         soc_min = max(0.0, avg_soc - avg_dod / 2.0)
@@ -88,24 +87,19 @@ class AgingModel:
         poly_min = self._calculate_polynomial(soc_min)
 
         result = poly_max - poly_min
-
-        if avg_dod >= 0.99:
-            print(
-                f"Stress Debug: soc_min={soc_min:.3f}, soc_max={soc_max:.3f}")
-            print(
-                f"Stress Debug: poly_min={poly_min:.8f}, poly_max={poly_max:.8f}, result={result:.8f}")
-
-        return result
+        return max(0.0, result)
 
     # Graphite expansion function; Equation 4.6 && Table 4.2
     def _calculate_polynomial(self, soc: float) -> float:
         if soc <= 1.0:
-            soc = soc * 100.0
+            soc_percent = soc * 100.0
+        else:
+            soc_percent = soc
 
         coeffs = [2.74e-13, -8.39e-11, 8.38e-9,
                   -2.39e-7, -5.05e-6, 9.70e-5, 0.02, -6.19e-3]
         result = 0.0
         for i, coeff in enumerate(coeffs):
-            result += coeff * (soc ** (7 - i))
+            result += coeff * (soc_percent ** (7 - i))
 
         return max(0.0, result)

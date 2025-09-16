@@ -13,7 +13,7 @@ class LabBatterySimulation:
     def simulate_lab_test(
         self,
         conditions: List[LabTestCondition],
-        battery_capacity_ah: float = 3.3,
+        battery_capacity_ah: float = 64.0,
         initial_soc: float = None
     ) -> List[BatteryState]:
         start_soc = initial_soc if initial_soc is not None else conditions[0].target_soc
@@ -48,11 +48,11 @@ class LabBatterySimulation:
                 soc_history.pop(0)
 
             if i % 100 == 0:
-                planned_dod = self._get_planned_dod_from_conditions(conditions)
+                characterization_number = i // 100
+                current_dod = condition.dod
+                clean_efc = characterization_number * 100 * current_dod
+                
                 avg_soc = np.mean(soc_history[-100:])
-
-                total_efc = battery_state.total_ah_throughput / \
-                    (2.0 * battery_capacity_ah)
 
                 calendar_loss = self.aging_model.calculate_calendar_aging(
                     condition.time,
@@ -61,10 +61,10 @@ class LabBatterySimulation:
                 )
 
                 cyclic_loss = self.aging_model.calculate_cyclic_aging(
-                    total_efc,
+                    clean_efc,
                     condition.temperature,
                     avg_soc,
-                    planned_dod
+                    current_dod
                 )
 
                 total_loss = calendar_loss + cyclic_loss
@@ -76,22 +76,17 @@ class LabBatterySimulation:
                     voltage=battery_state.voltage,
                     current=battery_state.current,
                     temperature=battery_state.temperature,
-                    cycle_count=total_efc,
+                    cycle_count=clean_efc,  # Use clean EFC
                     total_ah_throughput=battery_state.total_ah_throughput,
                     calendar_age=condition.time / 24.0,
                     capacity=new_capacity,
                     soh=new_soh,
-                    avg_dod=planned_dod
+                    avg_dod=current_dod
                 )
 
             history.append(battery_state)
         return history
 
-    def _get_planned_dod_from_conditions(self, conditions):
-        recent_socs = [c.target_soc for c in conditions[-1000:]]
-        if len(recent_socs) > 10:
-            return max(recent_socs) - min(recent_socs)
-        return 0.0
 
     def _update_lab_battery_state(
         self,
@@ -105,46 +100,16 @@ class LabBatterySimulation:
         new_soc = condition.target_soc
 
         throughput = state.total_ah_throughput + abs(current) * dt
+        total_efc = throughput / (2.0 * capacity_ah)
 
         return BatteryState(
             soc=new_soc,
-            voltage=3.7,
+            voltage=64.0,
             current=current,
             temperature=condition.temperature,
-            cycle_count=state.cycle_count,
+            cycle_count=total_efc,
             total_ah_throughput=throughput,
             calendar_age=state.calendar_age,
             capacity=state.capacity,
             soh=state.soh
         )
-
-    def _calculate_dod_from_soc_history(self, soc_history: List[float]) -> float:
-        if len(soc_history) < 10:
-            return 0.0
-
-        cycles = []
-        in_discharge = False
-        cycle_start_soc = None
-
-        for i in range(1, len(soc_history)):
-            current_soc = soc_history[i]
-            prev_soc = soc_history[i-1]
-
-            if not in_discharge and current_soc < prev_soc:
-                in_discharge = True
-                cycle_start_soc = prev_soc  # where dicharge started
-
-            elif in_discharge and current_soc >= prev_soc:
-                if cycle_start_soc is not None:
-                    cycle_dod = cycle_start_soc - prev_soc
-                    if cycle_dod > 0.01:
-                        cycles.append(cycle_dod)
-                in_discharge = False
-                cycle_start_soc = None
-
-        if in_discharge and cycle_start_soc is not None:
-            final_dod = cycle_start_soc - soc_history[-1]
-            if final_dod > 0.01:
-                cycles.append(final_dod)
-
-        return np.mean(cycles) if cycles else 0.0
