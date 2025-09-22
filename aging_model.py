@@ -24,27 +24,28 @@ class AgingModel:
 
         return calendar_loss
 
-    def calculate_cyclic_aging(self, efc: float, temp_celsius: float, avg_soc: float, avg_dod: float) -> float:
+    def calculate_cyclic_aging(self, efc: float, temp_celsius: float, avg_soc: float, avg_dod: float, c_rate: float) -> float:
         if efc <= 0:
             return 0.0
 
         sei_loss = self._calculate_sei_loss(
             efc, temp_celsius, avg_soc, avg_dod)
-        am_loss = self._calculate_active_material_loss(efc, avg_soc, avg_dod)
+        am_loss = self._calculate_active_material_loss_krupp(
+            efc, avg_soc, avg_dod, c_rate)
 
         return sei_loss + am_loss
 
     def _calculate_sei_loss(self, efc: float, temp_celsius: float, avg_soc: float, avg_dod: float) -> float:
         temp_kelvin = celsius_to_kelvin(temp_celsius)
         temp_term = np.exp(-self.params.activation_energy_cyclic /
-                        (self.params.gas_constant * temp_kelvin))
+                           (self.params.gas_constant * temp_kelvin))
 
         stress_amplitude = self._calculate_stress_amplitude(avg_soc, avg_dod)
         soc_chemical_term = self._calculate_soc_dependency_L(avg_soc)
         efc_term = efc ** self.params.efc_exponent
 
         sei_loss_percent = self.params.c2 * stress_amplitude * \
-                        temp_term * efc_term * soc_chemical_term
+            temp_term * efc_term * soc_chemical_term
 
         return sei_loss_percent / 10000.0
 
@@ -63,21 +64,46 @@ class AgingModel:
         avg_soc_percent = avg_soc * 100
         return self.params.c3 * avg_soc_percent + self.params.c4
 
-    def _calculate_active_material_loss(self, efc: float, avg_soc: float, avg_dod: float) -> float:
-        if avg_dod <= 0.6:
+    def _calculate_active_material_loss_krupp(self, efc: float, avg_soc: float, avg_dod: float, current_rate: float) -> float:
+        """
+        Formula 4.18: Active material loss with current dependency (primitive function)
+        C_loss,AM = (1/(I^2 * σ)) * ((-EFC * (m-2) * c5 * σ^2 * I^2)/2)^(-2/(m-2))
+        """
+        if efc <= 0:
             return 0.0
 
         stress_amplitude = self._calculate_stress_amplitude(avg_soc, avg_dod)
+        if stress_amplitude <= 0:
+            return 0.0
 
-        dod_excess = avg_dod - 0.6
+        c5 = self.params.c5
+        m = self.params.m
+
+        if avg_dod <= 0.6:
+            return 0.0
+
+        numerator_term = (-efc * (m - 2) * c5 * (stress_amplitude ** 2) * (current_rate ** 2)) / 2.0
+
+        if m >= 2.0 or numerator_term >= 0:
+            return 0.0
+
+        exponent = -2.0 / (m - 2.0)
+        inner_term = abs(numerator_term) ** exponent
+
+        denominator = (current_rate ** 2) * stress_amplitude
+
+        if denominator <= 0:
+            return 0.0
+
+        am_loss = inner_term / denominator
+
+        scaling_factor = 1.0
         if avg_dod >= 0.8:
-            dod_factor = np.exp(dod_excess * 3.0)
-        else:
-            dod_factor = dod_excess * 5.0
+            dod_multiplier = (avg_dod - 0.6) / 0.4  # 0 at 60%, 1 at 100%
+            current_multiplier = current_rate  # Higher current = more aging
+            scaling_factor = 50.0 * dod_multiplier * current_multiplier
 
-        am_loss = self.params.c5 * dod_factor * stress_amplitude * (efc ** 0.8)
-
-        return max(0.0, am_loss / 1000.0)
+        return max(0.0, am_loss * scaling_factor)
 
     def _calculate_stress_amplitude(self, avg_soc: float, avg_dod: float) -> float:
         soc_min = max(0.0, avg_soc - avg_dod / 2.0)

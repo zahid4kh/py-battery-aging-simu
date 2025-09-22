@@ -25,13 +25,16 @@ class SyntheticDataGenerator:
         soc_min = max(0.0, soc_avg - dod / 2)
         soc_max = min(1.0, soc_avg + dod / 2)
 
-        print(f"Krupp Cyclic: DoD={dod * 100:.0f}%, Avg-SoC={soc_avg * 100:.0f}%, C-rate={c_rate}, T={temperature}°C")
+        print(
+            f"Krupp Cyclic: DoD={dod * 100:.0f}%, Avg-SoC={soc_avg * 100:.0f}%, C-rate={c_rate}, T={temperature}°C")
         print(f"SOC Window: {soc_min * 100:.1f}% - {soc_max * 100:.1f}%")
-        print(f"Krupp Method: {cycles_per_characterization} cycles per characterization, {num_characterization_blocks} blocks")
+        print(
+            f"Krupp Method: {cycles_per_characterization} cycles per characterization, {num_characterization_blocks} blocks")
 
         # 4.4.4: preconditioning (5 cycles at 1C)
         print("Adding preconditioning: 5 cycles at 1C")
-        current_time = self._add_preconditioning(conditions, current_time, temperature, time_step_hours)
+        current_time = self._add_preconditioning(
+            conditions, current_time, temperature, time_step_hours)
 
         # Krupp's block methodology from Section 4.4.2
         discharge_time = dod / c_rate
@@ -39,13 +42,15 @@ class SyntheticDataGenerator:
         actual_cycle_time = discharge_time + charge_time
         base_cycle_time = 4.0
         rest_time = max(0.0, base_cycle_time - actual_cycle_time)
-        print(f"Cycle timing: discharge={discharge_time:.2f}h, charge={charge_time:.2f}h, rest={rest_time:.2f}h, total={base_cycle_time:.2f}h")
+        print(
+            f"Cycle timing: discharge={discharge_time:.2f}h, charge={charge_time:.2f}h, rest={rest_time:.2f}h, total={base_cycle_time:.2f}h")
 
         for block in range(num_characterization_blocks):
-            print(f"Starting characterization block {block + 1}/{num_characterization_blocks}")
-            
+            print(
+                f"Starting characterization block {block + 1}/{num_characterization_blocks}")
+
             for cycle in range(cycles_per_characterization):
-                
+
                 # PHASE 1: DISCHARGE at specified C-rate
                 discharge_steps = int(discharge_time / time_step_hours)
                 for step in range(discharge_steps):
@@ -97,16 +102,19 @@ class SyntheticDataGenerator:
                 cycle_number += 1
 
             # Characterization after every 100 cycles
-            print(f"Adding characterization after {cycles_per_characterization} cycles")
+            print(
+                f"Adding characterization after {cycles_per_characterization} cycles")
             current_time = self._add_cyclic_characterization(
                 conditions, current_time, temperature, time_step_hours, cycle_number, soc_max
             )
-            
+
             current_efc = cycle_number * dod
-            print(f"Block {block + 1} complete: {cycle_number} total cycles, {current_efc:.1f} EFC, {current_time:.1f}h")
+            print(
+                f"Block {block + 1} complete: {cycle_number} total cycles, {current_efc:.1f} EFC, {current_time:.1f}h")
 
         total_cycles = num_characterization_blocks * cycles_per_characterization
-        print(f"Generated {len(conditions)} conditions, {total_cycles} cycles total")
+        print(
+            f"Generated {len(conditions)} conditions, {total_cycles} cycles total")
         return conditions
 
     def _add_preconditioning(self, conditions, current_time, temperature, time_step_hours):
@@ -244,7 +252,8 @@ class SyntheticDataGenerator:
         current_time = 0.0
         time_step_hours = 1.0
 
-        current_time = self._add_preconditioning(conditions, current_time, temperature, 0.1)
+        current_time = self._add_preconditioning(
+            conditions, current_time, temperature, 0.1)
 
         current_time = self._add_calendar_characterization(
             conditions, current_time, temperature, 0.1
@@ -267,13 +276,15 @@ class SyntheticDataGenerator:
             current_time += time_step_hours
 
             if current_time >= next_characterization and current_time < total_hours - 24:
-                print(f"Adding calendar characterization at {current_time / 24:.1f} days")
+                print(
+                    f"Adding calendar characterization at {current_time / 24:.1f} days")
                 current_time = self._add_calendar_characterization(
                     conditions, current_time, temperature, 0.1
                 )
                 next_characterization += characterization_interval_hours
 
-        print(f"Generated calendar aging: {duration_days} days at {soc * 100}% SOC, {temperature}°C")
+        print(
+            f"Generated calendar aging: {duration_days} days at {soc * 100}% SOC, {temperature}°C")
         return conditions
 
     def _add_calendar_characterization(self, conditions, current_time, temperature, time_step_hours):

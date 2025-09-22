@@ -51,7 +51,7 @@ class LabBatterySimulation:
                 characterization_number = i // 100
                 current_dod = condition.dod
                 clean_efc = characterization_number * 100 * current_dod
-                
+
                 avg_soc = np.mean(soc_history[-100:])
 
                 calendar_loss = self.aging_model.calculate_calendar_aging(
@@ -64,7 +64,8 @@ class LabBatterySimulation:
                     clean_efc,
                     condition.temperature,
                     avg_soc,
-                    current_dod
+                    current_dod,
+                    condition.c_rate
                 )
 
                 total_loss = calendar_loss + cyclic_loss
@@ -76,7 +77,7 @@ class LabBatterySimulation:
                     voltage=battery_state.voltage,
                     current=battery_state.current,
                     temperature=battery_state.temperature,
-                    cycle_count=clean_efc,  # Use clean EFC
+                    cycle_count=clean_efc,
                     total_ah_throughput=battery_state.total_ah_throughput,
                     calendar_age=condition.time / 24.0,
                     capacity=new_capacity,
@@ -86,7 +87,6 @@ class LabBatterySimulation:
 
             history.append(battery_state)
         return history
-
 
     def _update_lab_battery_state(
         self,
