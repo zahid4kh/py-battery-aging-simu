@@ -37,6 +37,8 @@ class LabBatterySimulation:
             prev_condition = conditions[i-1]
             dt = condition.time - prev_condition.time
 
+            nominal_crate = self._get_nominal_crate(conditions, i)
+
             battery_state = self._update_lab_battery_state(
                 battery_state,
                 condition,
@@ -65,7 +67,7 @@ class LabBatterySimulation:
                     condition.temperature,
                     avg_soc,
                     current_dod,
-                    condition.c_rate
+                    nominal_crate
                 )
 
                 total_loss = calendar_loss + cyclic_loss
@@ -87,6 +89,12 @@ class LabBatterySimulation:
 
             history.append(battery_state)
         return history
+
+    def _get_nominal_crate(self, conditions: List[LabTestCondition], current_index: int) -> float:
+        for i in range(max(0, current_index - 100), current_index):
+            if abs(conditions[i].c_rate) > 0.1:
+                return abs(conditions[i].c_rate)
+        return 1.0
 
     def _update_lab_battery_state(
         self,
