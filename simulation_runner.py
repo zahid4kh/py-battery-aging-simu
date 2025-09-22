@@ -1,7 +1,7 @@
 from typing import Tuple
 from data_loader import DataLoader
 from bus_simulation import BusSimulation
-from data.bus import RouteType, Bus
+from data.bus import Bus
 from data.simulation_result import SimulationResult
 from data.simulation_parameters import SimulationParameters
 

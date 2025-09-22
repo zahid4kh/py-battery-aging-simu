@@ -79,11 +79,13 @@ class BusSimulation:
                     avg_soc
                 )
 
+                current_crate = abs(battery_state.current) / bus.battery_capacity
                 cyclic_loss = self.aging_model.calculate_cyclic_aging(
                     total_efc,
                     condition.ambient_temp,
                     avg_soc,
-                    current_dod
+                    current_dod,
+                    current_crate
                 )
 
                 total_loss_fraction = calendar_loss + cyclic_loss
@@ -105,6 +107,7 @@ class BusSimulation:
 
             if condition.time - last_save_time >= save_interval_hours:
                 current_dod = self._calculate_dod_from_soc_history(soc_history_for_dod)
+                current_crate_for_logging = abs(battery_state.current) / bus.battery_capacity
 
                 detailed_data.append({
                     'time_hours': condition.time,
@@ -122,7 +125,7 @@ class BusSimulation:
                         condition.time, condition.ambient_temp, battery_state.soc),
                     'cyclic_loss': self.aging_model.calculate_cyclic_aging(
                         battery_state.cycle_count, condition.ambient_temp,
-                        battery_state.soc, current_dod) if battery_state.cycle_count > 0 else 0.0,
+                        battery_state.soc, current_dod, current_crate_for_logging) if battery_state.cycle_count > 0 else 0.0,
                     'isCharging': condition.is_charging,
                     'is_regenerating': condition.is_regenerating
                 })
@@ -234,11 +237,10 @@ class BusSimulation:
         #return max(0.0, dod)
 
     def get_ocv_from_soc(self, soc: float) -> float:
-        # clamp SOC between (0.0-1.0)
         soc = max(0.0, min(1.0, soc))
 
-        soc_points = [0.0, 0.1, 0.2, 0.4, 0.6, 0.8, 1.0]
-        ocv_points = [3.0, 3.4, 3.5, 3.65, 3.75, 3.9, 4.2]
+        soc_points = [0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0]
+        ocv_points = [3.34, 3.53, 3.59, 3.63, 3.66, 3.70, 3.75, 3.83, 3.92, 4.03, 4.13]
 
         return float(np.interp(soc, soc_points, ocv_points))
 
