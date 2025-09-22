@@ -7,3 +7,5 @@ plot-all-super.py
 /data/__pycache__
 /pfiles
 /csv-results
+/csv-calendar
+/csv-cyclic
